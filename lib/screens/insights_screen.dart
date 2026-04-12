@@ -15,8 +15,6 @@ class InsightsScreen extends StatefulWidget {
 }
 
 class _InsightsScreenState extends State<InsightsScreen> {
-  bool _showPieChart = true;
-
   @override
   Widget build(BuildContext context) {
     final ep = context.watch<ExpenseProvider>();
@@ -66,63 +64,17 @@ class _InsightsScreenState extends State<InsightsScreen> {
         // Chart
         if (pieData.isNotEmpty) ...[
           _Card(child: Column(children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('By Category', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                IconButton(
-                  icon: Icon(_showPieChart ? Icons.bar_chart : Icons.pie_chart, color: AppTheme.amber, size: 20),
-                  onPressed: () => setState(() => _showPieChart = !_showPieChart),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  tooltip: _showPieChart ? 'Show Bar Chart' : 'Show Pie Chart',
-                ),
-              ],
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('By Category', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
             ),
             const SizedBox(height: 16),
             SizedBox(
               height: 180,
-              child: _showPieChart 
-                ? PieChart(PieChartData(
-                    sections: pieData, centerSpaceRadius: 50,
-                    sectionsSpace: 3, startDegreeOffset: -90,
-                  ))
-                : BarChart(BarChartData(
-                    alignment: BarChartAlignment.spaceAround,
-                    maxY: catTotals.values.isEmpty ? 1 : catTotals.values.reduce((a, b) => a > b ? a : b) * 1.2,
-                    barTouchData: BarTouchData(enabled: false),
-                    titlesData: FlTitlesData(
-                      show: true,
-                      leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (double value, TitleMeta meta) {
-                            if (value.toInt() < 0 || value.toInt() >= catTotals.length) return const SizedBox.shrink();
-                            String emoji = getCat(catTotals.keys.elementAt(value.toInt())).emoji;
-                            return Padding(padding: const EdgeInsets.only(top: 6), child: Text(emoji, style: const TextStyle(fontSize: 14)));
-                          },
-                        ),
-                      ),
-                    ),
-                    gridData: const FlGridData(show: false),
-                    borderData: FlBorderData(show: false),
-                    barGroups: catTotals.entries.toList().asMap().entries.map((em) {
-                      return BarChartGroupData(
-                        x: em.key,
-                        barRods: [
-                          BarChartRodData(
-                            toY: em.value.value,
-                            color: AppTheme.catColor(em.value.key),
-                            width: 16,
-                            borderRadius: BorderRadius.circular(4),
-                          )
-                        ],
-                      );
-                    }).toList(),
-                  )),
+              child: PieChart(PieChartData(
+                sections: pieData, centerSpaceRadius: 50,
+                sectionsSpace: 3, startDegreeOffset: -90,
+              )),
             ),
             const SizedBox(height: 16),
             ...catTotals.entries.map((e) {
