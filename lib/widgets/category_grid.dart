@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/expense.dart';
 import '../theme/app_theme.dart';
 import '../providers/settings_provider.dart';
+import '../providers/locale_provider.dart';
 
 class CategoryGrid extends StatelessWidget {
   final List<Category> categories;
@@ -14,6 +15,7 @@ class CategoryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sp = context.watch<SettingsProvider>();
+    final loc = context.watch<LocaleProvider>();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         const Text('CATEGORY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
@@ -32,7 +34,8 @@ class CategoryGrid extends StatelessWidget {
         shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
         crossAxisCount: 2, childAspectRatio: 2.6, mainAxisSpacing: 8, crossAxisSpacing: 8,
         children: categories.where((c) => !sp.catHidden(c.id)).map((c) {
-          final label = sp.catLabel(c.id, c.label);
+          final t = loc.t('cat_${c.id}');
+          final label = sp.catLabel(c.id, c.label, localizedLabel: t.startsWith('cat_') ? null : t);
           final emoji = sp.catEmoji(c.id, c.emoji);
           return GestureDetector(
             onTap: enabled ? () => onPick(c) : null,

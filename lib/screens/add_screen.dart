@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/expense_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/locale_provider.dart';
 import '../models/expense.dart';
 import '../theme/app_theme.dart';
 import '../widgets/numpad.dart';
 import '../widgets/category_grid.dart';
 import '../widgets/streak_badge.dart';
+import '../widgets/streak_calendar.dart';
 
 class AddScreen extends StatefulWidget {
   const AddScreen({super.key});
@@ -20,13 +22,13 @@ class _AddScreenState extends State<AddScreen> {
   String _amt = '';
   DateTime _date = DateTime.now();
 
-  String get _today => DateFormat('yyyy-MM-dd').format(DateTime.now());
   String get _dateStr => DateFormat('yyyy-MM-dd').format(_date);
-  String get _dateLabel {
+
+  String _dateLabel(LocaleProvider loc) {
     final t = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final y = DateFormat('yyyy-MM-dd').format(DateTime.now().subtract(const Duration(days: 1)));
-    if (_dateStr == t) return 'Today';
-    if (_dateStr == y) return 'Yesterday';
+    if (_dateStr == t) return loc.t('today');
+    if (_dateStr == y) return loc.t('yesterday');
     return DateFormat('dd MMM yyyy').format(_date);
   }
 
@@ -58,8 +60,9 @@ class _AddScreenState extends State<AddScreen> {
   Widget build(BuildContext context) {
     final ep = context.watch<ExpenseProvider>();
     final sp = context.watch<SettingsProvider>();
+    final loc = context.watch<LocaleProvider>();
     final List<Category> cats = sp.getCategoryList(_type, _type == 'expense' ? expenseCategories : incomeCategories);
-    final balance = sp.monthlyIncome + ep.monthlyIncomeTxn - ep.monthlyExpenses;
+    final balance = ep.totalBalance;
     final cs = Theme.of(context).colorScheme;
 
     return SafeArea(
@@ -72,17 +75,20 @@ class _AddScreenState extends State<AddScreen> {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('   '), // Spacer equivalent logic if needed, but centering relies on Stack
-                ),
-                Text('Kharcha', style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                Text(loc.t('app_name'), style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w900, letterSpacing: -1,
                 )),
                 if (ep.streak > 0)
                   Align(
                     alignment: Alignment.centerRight,
-                    child: StreakBadge(streak: ep.streak),
+                    child: StreakBadge(
+                      streak: ep.streak,
+                      onTap: () => showStreakCalendar(
+                        context,
+                        activeDates: ep.streakDates,
+                        streak: ep.streak,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -101,14 +107,14 @@ class _AddScreenState extends State<AddScreen> {
             ),
             child: Row(children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Balance', style: TextStyle(fontSize: 11, color: AppTheme.fgMuted, fontWeight: FontWeight.w700)),
+                Text(loc.t('total_balance'), style: const TextStyle(fontSize: 11, color: AppTheme.fgMuted, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 Text('${sp.currency}${NumberFormat('#,##,###').format(balance)}',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800,
                     color: balance >= 0 ? const Color(0xFF22C55E) : const Color(0xFFEF4444))),
               ])),
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text('Spent', style: TextStyle(fontSize: 11, color: AppTheme.fgMuted)),
+                Text(loc.t('expenses'), style: const TextStyle(fontSize: 11, color: AppTheme.fgMuted)),
                 Text('${sp.currency}${NumberFormat('#,##,###').format(ep.monthlyExpenses)}',
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
               ]),
@@ -126,6 +132,7 @@ class _AddScreenState extends State<AddScreen> {
               child: Row(children: ['expense', 'income'].map((t) {
                 final on = t == _type;
                 final color = t == 'expense' ? const Color(0xFFEF4444) : const Color(0xFF22C55E);
+                final label = t == 'expense' ? loc.t('add_expense') : loc.t('add_income');
                 return Expanded(child: GestureDetector(
                   onTap: () => setState(() => _type = t),
                   child: AnimatedContainer(
@@ -135,9 +142,9 @@ class _AddScreenState extends State<AddScreen> {
                       color: on ? color.withOpacity(0.15) : Colors.transparent,
                       borderRadius: BorderRadius.circular(9),
                     ),
-                    child: Text(t[0].toUpperCase() + t.substring(1),
+                    child: Text(label,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
                         color: on ? color : AppTheme.fgMuted)),
                   ),
                 ));
@@ -162,7 +169,7 @@ class _AddScreenState extends State<AddScreen> {
                   border: Border.all(color: AppTheme.border),
                 ),
                 child: Row(children: [
-                  Text(_dateLabel, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                  Text(_dateLabel(loc), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                   const Spacer(),
                   Icon(Icons.calendar_today_outlined, size: 15, color: AppTheme.fgMuted),
                 ]),
@@ -200,9 +207,9 @@ class _AddScreenState extends State<AddScreen> {
 
             const SizedBox(height: 12),
             CategoryGrid(
-              categories: cats, 
+              categories: cats,
               type: _type,
-              enabled: _amt.isNotEmpty && double.tryParse(_amt) != null && double.parse(_amt) > 0, 
+              enabled: _amt.isNotEmpty && double.tryParse(_amt) != null && double.parse(_amt) > 0,
               onPick: _pick,
             ),
             const SizedBox(height: 12),

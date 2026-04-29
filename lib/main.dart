@@ -7,7 +7,9 @@ import 'screens/add_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/insights_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
+import 'providers/locale_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +19,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider()),
       ],
       child: const KharchaApp(),
     ),
@@ -35,7 +38,7 @@ class KharchaApp extends StatelessWidget {
       darkTheme: AppTheme.dark(),
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
       debugShowCheckedModeBanner: false,
-      home: const HomeShell(),
+      home: const SplashScreen(nextScreen: HomeShell()),
     );
   }
 }
@@ -54,6 +57,7 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = context.watch<LocaleProvider>();
     return Scaffold(
       body: IndexedStack(index: _idx, children: _screens),
       bottomNavigationBar: NavigationBar(
@@ -61,11 +65,11 @@ class _HomeShellState extends State<HomeShell> {
         onDestinationSelected: (i) => setState(() => _idx = i),
         backgroundColor: Theme.of(context).colorScheme.surface,
         indicatorColor: AppTheme.amber.withOpacity(0.18),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.add_circle_outline), selectedIcon: Icon(Icons.add_circle), label: 'Add'),
-          NavigationDestination(icon: Icon(Icons.history_outlined), selectedIcon: Icon(Icons.history), label: 'History'),
-          NavigationDestination(icon: Icon(Icons.pie_chart_outline), selectedIcon: Icon(Icons.pie_chart), label: 'Insights'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Settings'),
+        destinations: [
+          NavigationDestination(icon: const Icon(Icons.add_circle_outline), selectedIcon: const Icon(Icons.add_circle), label: loc.t('nav_add')),
+          NavigationDestination(icon: const Icon(Icons.history_outlined), selectedIcon: const Icon(Icons.history), label: loc.t('nav_history')),
+          NavigationDestination(icon: const Icon(Icons.pie_chart_outline), selectedIcon: const Icon(Icons.pie_chart), label: loc.t('nav_insights')),
+          NavigationDestination(icon: const Icon(Icons.settings_outlined), selectedIcon: const Icon(Icons.settings), label: loc.t('nav_settings')),
         ],
       ),
     );

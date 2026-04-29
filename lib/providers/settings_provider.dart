@@ -6,17 +6,15 @@ import '../models/expense.dart';
 class SettingsProvider extends ChangeNotifier {
   bool _isDark = true;
   String _currency = '₹';
-  double _monthlyIncome = 0;
   // categoryId -> {label, emoji, hidden, type?}
   Map<String, Map<String, dynamic>> _catOverrides = {};
 
   bool get isDark => _isDark;
   String get currency => _currency;
-  double get monthlyIncome => _monthlyIncome;
   Map<String, Map<String, dynamic>> get catOverrides => _catOverrides;
 
-  String catLabel(String id, String defaultLabel) =>
-      _catOverrides[id]?['label'] ?? defaultLabel;
+  String catLabel(String id, String defaultLabel, {String? localizedLabel}) =>
+      _catOverrides[id]?['label'] ?? localizedLabel ?? defaultLabel;
   String catEmoji(String id, String defaultEmoji) =>
       _catOverrides[id]?['emoji'] ?? defaultEmoji;
   bool catHidden(String id) =>
@@ -41,7 +39,6 @@ class SettingsProvider extends ChangeNotifier {
     final p = await SharedPreferences.getInstance();
     _isDark = p.getBool('isDark') ?? true;
     _currency = p.getString('currency') ?? '₹';
-    _monthlyIncome = p.getDouble('monthlyIncome') ?? 0;
     final raw = p.getString('catOverrides');
     if (raw != null) {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
@@ -65,12 +62,6 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setMonthlyIncome(double v) async {
-    _monthlyIncome = v;
-    final p = await SharedPreferences.getInstance();
-    await p.setDouble('monthlyIncome', v);
-    notifyListeners();
-  }
 
   Future<void> addCustomCategory(String type, {required String label, required String emoji}) async {
     final id = 'custom_${DateTime.now().millisecondsSinceEpoch}';

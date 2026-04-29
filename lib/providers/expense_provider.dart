@@ -67,6 +67,9 @@ class ExpenseProvider extends ChangeNotifier {
   String get todayStr => DateTime.now().toIso8601String().substring(0, 10);
   String get thisMonth => DateTime.now().toIso8601String().substring(0, 7);
 
+  double get totalBalance => _expenses.fold(
+      0.0, (s, e) => s + (e.type == 'income' ? e.amount : -e.amount));
+
   double get monthlyExpenses => _expenses
       .where((e) => e.type == 'expense' && e.date.startsWith(thisMonth))
       .fold(0, (s, e) => s + e.amount);
@@ -113,4 +116,10 @@ class ExpenseProvider extends ChangeNotifier {
     }
     return m;
   }
+
+  /// All unique dates (yyyy-MM-dd) that have at least one expense entry.
+  Set<String> get streakDates => _expenses
+      .where((e) => e.type == 'expense')
+      .map((e) => e.date)
+      .toSet();
 }

@@ -1,4 +1,4 @@
-package com.example.kharcha
+package com.vivekbudania.kharcha
 
 import io.flutter.embedding.android.FlutterActivity
 
