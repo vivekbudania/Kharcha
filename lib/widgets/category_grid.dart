@@ -7,10 +7,18 @@ import '../providers/locale_provider.dart';
 
 class CategoryGrid extends StatelessWidget {
   final List<Category> categories;
+  final List<Category>? allCategories;
   final String type;
   final bool enabled;
   final void Function(Category) onPick;
-  const CategoryGrid({super.key, required this.categories, required this.type, required this.enabled, required this.onPick});
+  const CategoryGrid({
+    super.key,
+    required this.categories,
+    this.allCategories,
+    required this.type,
+    required this.enabled,
+    required this.onPick,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +30,7 @@ class CategoryGrid extends StatelessWidget {
           color: AppTheme.fgMuted, letterSpacing: 0.8)),
         const Spacer(),
         GestureDetector(
-          onTap: () => _manageCategories(context, sp, categories),
+          onTap: () => _manageCategories(context, sp, allCategories ?? categories),
           child: const Padding(
             padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             child: Icon(Icons.more_vert, size: 18, color: AppTheme.fgMuted),

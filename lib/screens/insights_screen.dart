@@ -7,6 +7,7 @@ import '../providers/settings_provider.dart';
 import '../providers/locale_provider.dart';
 import '../models/expense.dart';
 import '../theme/app_theme.dart';
+import '../widgets/report_sheets.dart';
 
 class InsightsScreen extends StatelessWidget {
   const InsightsScreen({super.key});
@@ -29,7 +30,7 @@ class InsightsScreen extends StatelessWidget {
       );
     }).toList();
 
-    // Weekly comparison
+    // Weekly comparison calculations
     final now = DateTime.now();
     final weekStart = now.subtract(Duration(days: now.weekday % 7));
     final lastWeekStart = weekStart.subtract(const Duration(days: 7));
@@ -47,9 +48,37 @@ class InsightsScreen extends StatelessWidget {
         .fold(0.0, (s, e) => s + e.amount);
     final diff = thisW - lastW;
 
-    final expenseCount = ep.expenses
-        .where((e) => e.type == 'expense' && e.date.startsWith(ep.thisMonth))
-        .length;
+    // ── Spending Health Calculation ──
+    final hasIncome = sp.monthlyIncome != null && sp.monthlyIncome! > 0;
+    double recommendedDaily = 0;
+    double dailyAvg = 0;
+    double burnRatePct = 0;
+    String healthStatus = "On Track";
+    Color healthColor = const Color(0xFF22C55E);
+
+    if (hasIncome) {
+      recommendedDaily = ep.getRecommendedDailySpend(sp.monthlyIncome!, sp.savingsGoal ?? 0.0);
+      dailyAvg = ep.currentDailyAverage;
+      burnRatePct = ep.getBurnRate(sp.monthlyIncome!, sp.savingsGoal ?? 0.0);
+
+      if (dailyAvg <= recommendedDaily) {
+        healthStatus = "On Track";
+        healthColor = const Color(0xFF22C55E);
+      } else if (dailyAvg <= 1.2 * recommendedDaily) {
+        healthStatus = "Watch Spending";
+        healthColor = const Color(0xFFF59E0B);
+      } else {
+        healthStatus = "Overspending";
+        healthColor = const Color(0xFFEF4444);
+      }
+    }
+
+    // ── Generate Dynamic Insights ──
+    final allInsights = ep.generateAllInsights(
+      currency: cur,
+      monthlyIncome: sp.monthlyIncome,
+      savingsGoal: sp.savingsGoal,
+    ).take(3).toList();
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -57,40 +86,184 @@ class InsightsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(loc.t('monthly_insights'),
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w800)),
+            Text(
+              loc.t('monthly_insights'),
+              style: Theme.of(context)
+                  .textTheme
+                  .headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
             const SizedBox(height: 16),
 
-            // ── Month summary card ──────────────────────────
+            // ── Spending Health Dashboard ──
             _Card(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    loc.t('expenses').toUpperCase(),
-                    style: const TextStyle(
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'SPENDING HEALTH',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.fgMuted,
+                            letterSpacing: 0.8),
+                      ),
+                      if (hasIncome)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: healthColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: healthColor.withOpacity(0.2)),
+                          ),
+                          child: Text(
+                            healthStatus.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: healthColor,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (hasIncome) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Target Daily Spend', style: TextStyle(fontSize: 12, color: AppTheme.fgMuted)),
+                              const SizedBox(height: 4),
+                              Text(
+                                '$cur${recommendedDaily.toStringAsFixed(0)}',
+                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'monospace'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Current Daily Avg', style: TextStyle(fontSize: 12, color: AppTheme.fgMuted)),
+                              const SizedBox(height: 4),
+                              Text(
+                                '$cur${dailyAvg.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  fontFamily: 'monospace',
+                                  color: dailyAvg > recommendedDaily ? const Color(0xFFEF4444) : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(color: AppTheme.border),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Monthly Burn Rate', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text('${burnRatePct.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: (burnRatePct / 100).clamp(0.0, 1.0),
+                        minHeight: 8,
+                        backgroundColor: AppTheme.border,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          burnRatePct > 100 ? const Color(0xFFEF4444) : AppTheme.amber,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'You have consumed ${burnRatePct.toStringAsFixed(0)}% of your available spend limit this month.',
+                      style: const TextStyle(fontSize: 11, color: AppTheme.fgMuted),
+                    ),
+                  ] else ...[
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Column(
+                          children: [
+                            Text('⚙️', style: TextStyle(fontSize: 32)),
+                            SizedBox(height: 8),
+                            Text(
+                              'Spending Health setup needed',
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Configure your monthly income and savings goal in Settings to unlock real-time spending health status metrics.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppTheme.fgMuted, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Dynamic Top 3 Spending Insights ──
+            _Card(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'SPENDING INSIGHTS',
+                    style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.fgMuted,
                         letterSpacing: 0.8),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '$cur${NumberFormat('#,##,###').format(total)}',
-                    style: const TextStyle(
-                        fontSize: 38,
-                        fontWeight: FontWeight.w800,
-                        fontFamily: 'monospace'),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$expenseCount ${loc.t('expenses').toLowerCase()}',
-                    style: const TextStyle(
-                        fontSize: 13, color: AppTheme.fgMuted),
-                  ),
+                  const SizedBox(height: 16),
+                  if (allInsights.isEmpty)
+                    const Text(
+                      'No insights available yet. Log more expenses to discover patterns!',
+                      style: TextStyle(color: AppTheme.fgMuted, fontSize: 13),
+                    )
+                  else
+                    ...allInsights.map((insight) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('•', style: TextStyle(fontSize: 18, color: AppTheme.amber)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                insight,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
                 ],
               ),
             ),
@@ -107,11 +280,11 @@ class InsightsScreen extends StatelessWidget {
                             fontSize: 14, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 20),
                     SizedBox(
-                      height: 200,
+                      height: 160,
                       child: PieChart(
                         PieChartData(
                           sections: pieData,
-                          centerSpaceRadius: 52,
+                          centerSpaceRadius: 40,
                           sectionsSpace: 3,
                           startDegreeOffset: -90,
                         ),
@@ -228,8 +401,8 @@ class InsightsScreen extends StatelessWidget {
                           horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
                         color: diff <= 0
-                            ? const Color(0xFF22C55E).withValues(alpha: 0.13)
-                            : const Color(0xFFEF4444).withValues(alpha: 0.13),
+                            ? const Color(0xFF22C55E).withOpacity(0.12)
+                            : const Color(0xFFEF4444).withOpacity(0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -248,6 +421,65 @@ class InsightsScreen extends StatelessWidget {
                   ],
                 ],
               ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'REPORTS & SNAPSHOTS',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.fgMuted,
+                  letterSpacing: 0.8),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => showWeeklySummarySheet(context, ep, sp, loc),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.border),
+                      ),
+                      child: const Column(
+                        children: [
+                          Text('📅', style: TextStyle(fontSize: 24)),
+                          SizedBox(height: 6),
+                          Text('Weekly Summary', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          SizedBox(height: 2),
+                          Text('WoW trends & leaks', style: TextStyle(fontSize: 11, color: AppTheme.fgMuted)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => showMonthlyReportSheet(context, ep, sp, loc),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.border),
+                      ),
+                      child: const Column(
+                        children: [
+                          Text('💎', style: TextStyle(fontSize: 24)),
+                          SizedBox(height: 6),
+                          Text('Monthly Snapshot', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          SizedBox(height: 2),
+                          Text('Consistency & cards', style: TextStyle(fontSize: 11, color: AppTheme.fgMuted)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -283,7 +515,7 @@ class _WeekBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark
             ? AppTheme.card2
-            : Colors.black.withValues(alpha: 0.04),
+            : Colors.black.withOpacity(0.04),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

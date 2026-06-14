@@ -30,6 +30,23 @@ class LocaleProvider extends ChangeNotifier {
   }
 
   String t(String key) {
+    if (key == 'nav_home') {
+      final homeTranslations = {
+        'en': 'Home',
+        'hi': 'होम',
+        'es': 'Inicio',
+        'fr': 'Accueil',
+        'ja': 'ホーム',
+        'ko': '홈',
+        'th': 'หน้าแรก',
+        'de': 'Start',
+        'zh': '首页',
+        'ar': 'الرئيسية',
+        'pt': 'Início',
+        'ru': 'Главная',
+      };
+      return homeTranslations[_locale] ?? homeTranslations['en']!;
+    }
     return appTranslations[_locale]?[key] ?? appTranslations['en']?[key] ?? key;
   }
 }

@@ -37,6 +37,19 @@ class HistoryScreen extends StatelessWidget {
       ]));
     }
 
+    // Calculations
+    final topCatEntry = ep.categoryTotals.entries.isNotEmpty
+        ? (ep.categoryTotals.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).first
+        : null;
+    final topCatName = topCatEntry != null
+        ? sp.catLabel(topCatEntry.key, getCat(topCatEntry.key).label, localizedLabel: loc.t('cat_${topCatEntry.key}').startsWith('cat_') ? null : loc.t('cat_${topCatEntry.key}'))
+        : 'None';
+
+    final trendPct = ep.monthlyTrendPercentage;
+    final trendStr = trendPct == 0.0
+        ? '0%'
+        : '${trendPct > 0 ? "↑" : "↓"} ${trendPct.abs().toStringAsFixed(0)}%';
+
     return SafeArea(child: Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
@@ -46,6 +59,45 @@ class HistoryScreen extends StatelessWidget {
           Text('${ep.expenses.length} entries', style: const TextStyle(color: AppTheme.fgMuted, fontSize: 13)),
         ]),
       ),
+      // Aggregated Header Cards
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final cardW = (constraints.maxWidth - 8) / 2;
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _HistoryStatCard(
+                  width: cardW,
+                  title: loc.locale == 'hi' ? 'इस महीने कुल' : 'This Month Total',
+                  value: '${sp.currency}${NumberFormat('#,##,###').format(ep.monthlyExpenses)}',
+                ),
+                _HistoryStatCard(
+                  width: cardW,
+                  title: loc.locale == 'hi' ? 'दैनिक औसत' : 'Avg Daily Spend',
+                  value: '${sp.currency}${NumberFormat('#,##,###').format(ep.currentDailyAverage)}',
+                ),
+                _HistoryStatCard(
+                  width: cardW,
+                  title: loc.locale == 'hi' ? 'शीर्ष श्रेणी' : 'Largest Category',
+                  value: topCatName,
+                ),
+                _HistoryStatCard(
+                  width: cardW,
+                  title: loc.locale == 'hi' ? 'ट्रेंड' : 'Recent Trend',
+                  value: trendStr,
+                  valueColor: trendPct > 0
+                      ? const Color(0xFFEF4444)
+                      : (trendPct < 0 ? const Color(0xFF22C55E) : null),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+      const SizedBox(height: 8),
       Expanded(child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: dates.length,
@@ -171,5 +223,62 @@ class _ExpenseTile extends StatelessWidget {
         );
       });
     });
+  }
+}
+
+class _HistoryStatCard extends StatelessWidget {
+  final double width;
+  final String title;
+  final String value;
+  final Color? valueColor;
+
+  const _HistoryStatCard({
+    required this.width,
+    required this.title,
+    required this.value,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppTheme.card : Colors.white;
+    final titleCol = isDark ? AppTheme.fgMuted : Colors.black54;
+
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: titleCol,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              fontFamily: 'monospace',
+              color: valueColor ?? Theme.of(context).colorScheme.onSurface,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
   }
 }

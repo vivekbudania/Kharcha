@@ -9,9 +9,16 @@ class SettingsProvider extends ChangeNotifier {
   // categoryId -> {label, emoji, hidden, type?}
   Map<String, Map<String, dynamic>> _catOverrides = {};
 
+  double? _monthlyIncome;
+  double? _savingsGoal;
+  bool _onboardingCompleted = false;
+
   bool get isDark => _isDark;
   String get currency => _currency;
   Map<String, Map<String, dynamic>> get catOverrides => _catOverrides;
+  double? get monthlyIncome => _monthlyIncome;
+  double? get savingsGoal => _savingsGoal;
+  bool get onboardingCompleted => _onboardingCompleted;
 
   String catLabel(String id, String defaultLabel, {String? localizedLabel}) =>
       _catOverrides[id]?['label'] ?? localizedLabel ?? defaultLabel;
@@ -39,12 +46,44 @@ class SettingsProvider extends ChangeNotifier {
     final p = await SharedPreferences.getInstance();
     _isDark = p.getBool('isDark') ?? true;
     _currency = p.getString('currency') ?? '₹';
+    _monthlyIncome = p.getDouble('monthlyIncome');
+    _savingsGoal = p.getDouble('savingsGoal');
+    _onboardingCompleted = p.getBool('onboardingCompleted') ?? false;
     final raw = p.getString('catOverrides');
     if (raw != null) {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       _catOverrides = decoded.map((k, v) =>
           MapEntry(k, Map<String, dynamic>.from(v as Map)));
     }
+    notifyListeners();
+  }
+
+  Future<void> setMonthlyIncome(double? val) async {
+    _monthlyIncome = val;
+    final p = await SharedPreferences.getInstance();
+    if (val == null) {
+      await p.remove('monthlyIncome');
+    } else {
+      await p.setDouble('monthlyIncome', val);
+    }
+    notifyListeners();
+  }
+
+  Future<void> setSavingsGoal(double? val) async {
+    _savingsGoal = val;
+    final p = await SharedPreferences.getInstance();
+    if (val == null) {
+      await p.remove('savingsGoal');
+    } else {
+      await p.setDouble('savingsGoal', val);
+    }
+    notifyListeners();
+  }
+
+  Future<void> setOnboardingCompleted(bool val) async {
+    _onboardingCompleted = val;
+    final p = await SharedPreferences.getInstance();
+    await p.setBool('onboardingCompleted', val);
     notifyListeners();
   }
 
